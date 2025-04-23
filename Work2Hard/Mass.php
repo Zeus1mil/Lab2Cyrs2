@@ -1,11 +1,11 @@
 <?php
 
-function isOperator($c)
+function isOperator(string $c): bool
 {
-    return ($c == '+' || $c == '-' || $c == '*' || $c == '/');
+    return ($c === '+' || $c === '-' || $c === '*' || $c === '/');
 }
 
-function getOperaroePriority($op)
+function getOperatorPriority(string $op): int
 {
     if ($op === '+' || $op === '-') {
         return 1;
@@ -16,73 +16,63 @@ function getOperaroePriority($op)
     return 0;
 }
 
-function calculation($operand1, $operand2, $op)
+function calculation(float $operand1, float $operand2, string $op): float|string
 {
     if (!preg_match('/^[\d\s\(\)\+\-\*\/\.]+$/', $operand1 . $op . $operand2)) {
         return "Ошибка! Введены некорректные символы.";
     }
 
-    if ($op === '+') {
-        return $operand1 + $operand2;
-    } else if ($op === '-') {
-        return $operand1 - $operand2;
-    } else if ($op === '*') {
-        if ($operand2 === 0 || $operand1 === 0) {
-            return "Ошибка! Деление на ноль!" . PHP_EOL;
-        } else {
+    switch ($op) {
+        case '+':
+            return $operand1 + $operand2;
+        case '-':
+            return $operand1 - $operand2;
+        case '*':
+            if ($operand2 === 0) {
+                return "Ошибка! Деление на ноль!";
+            }
             return $operand1 * $operand2;
-        }
-    } else if ($op === '/') {
-        if ($operand1 === 0 || $operand2 === 0) {
-            return "Ошибка! Деление на ноль!" . PHP_EOL;
-        } else {
+        case '/':
+            if ($operand2 === 0) {
+                return "Ошибка! Деление на ноль!";
+            }
             return $operand1 / $operand2;
-        }
+        default:
+            return 0;
     }
-    return 0;
 }
 
-function calculateExample(&$example)
+function calculateExample(string $example): float|string
 {
-
     $opStack = array();
     $numStack = array();
+    $inParentheses = false;
+
     for ($i = 0; $i < strlen($example); $i++) {
         $c = $example[$i];
+
         if ($c === '(') {
-            $inParentheses = true;
+            array_push($opStack, $c);
         } elseif ($c === ')') {
-            $inParentheses = false;
-            if (empty($numStack)) {
-                return "Ошибка! В скобках нету выражения!";
+            while (!empty($opStack) && end($opStack) !== '(') {
+                $op = array_pop($opStack);
+                $operand2 = array_pop($numStack);
+                $operand1 = array_pop($numStack);
+                array_push($numStack, calculation($operand1, $operand2, $op));
             }
-        } else if (is_numeric($c) || $c === '.') {
+            array_pop($opStack);
+        } elseif (is_numeric($c) || $c === '.') {
             $numStr = $c;
             while ($i + 1 < strlen($example) && (is_numeric($example[$i + 1]) || $example[$i + 1] === '.')) {
                 $numStr .= $example[$i + 1];
                 $i++;
             }
-
             array_push($numStack, floatval($numStr));
-        } else if ($c === '(') {
-            array_push($opStack, '(');
-        } else if ($c === ')') {
-            while (end($opStack) != '(') {
+        } elseif (isOperator($c)) {
+            while (!empty($opStack) && getOperatorPriority(end($opStack)) >= getOperatorPriority($c)) {
                 $op = array_pop($opStack);
-
                 $operand2 = array_pop($numStack);
                 $operand1 = array_pop($numStack);
-
-                array_push($numStack, calculation($operand1, $operand2, $op));
-            }
-            array_pop($opStack);
-        } else if (isOperator($c)) {
-            while (!empty($opStack) && getOperaroePriority(end($opStack)) >= getOperaroePriority($c)) {
-                $op = array_pop($opStack);
-
-                $operand2 = array_pop($numStack);
-                $operand1 = array_pop($numStack);
-
                 array_push($numStack, calculation($operand1, $operand2, $op));
             }
             array_push($opStack, $c);
@@ -91,12 +81,11 @@ function calculateExample(&$example)
 
     while (!empty($opStack)) {
         $op = array_pop($opStack);
-
         $operand2 = array_pop($numStack);
         $operand1 = array_pop($numStack);
-
         array_push($numStack, calculation($operand1, $operand2, $op));
     }
+    
     return end($numStack);
 }
 
@@ -104,8 +93,6 @@ echo "Введите пример: ";
 $example = readline();
 
 $verification = "0123456789()+-*/";
-
-
 for ($i = 0; $i < strlen($example); $i++) {
     if (strpos($verification, $example[$i]) === false) {
         echo "Ошибка! В примере содержиться посторонние символы!" . PHP_EOL;
